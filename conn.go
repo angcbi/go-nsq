@@ -74,6 +74,7 @@ type Conn struct {
 	w io.Writer
 
 	cmdChan         chan *Command
+	// FIN消息channel
 	msgResponseChan chan *msgResponse
 	exitChan        chan int
 	drainReady      chan int
@@ -211,7 +212,10 @@ func (c *Conn) Connect() (*IdentifyResponse, error) {
 
 	c.wg.Add(2)
 	atomic.StoreInt32(&c.readLoopRunning, 1)
+	// 读, 处理收到的消息
 	go c.readLoop()
+
+	// 写， 发送cmd
 	go c.writeLoop()
 	return resp, nil
 }
@@ -555,6 +559,8 @@ func (c *Conn) readLoop() {
 				c.delegate.OnIOError(c, err)
 				goto exit
 			}
+
+			// message的 delegate.OnMessage OnFinish
 			msg.Delegate = delegate
 			msg.NSQDAddress = c.String()
 
@@ -606,11 +612,14 @@ func (c *Conn) writeLoop() {
 			// Decrement this here so it is correct even if we can't respond to nsqd
 			msgsInFlight := atomic.AddInt64(&c.messagesInFlight, -1)
 
+
 			if resp.success {
 				c.log(LogLevelDebug, "FIN %s", resp.msg.ID)
+				// 如果消息成功， consumer的成功消费计数+1   messagesFinished
 				c.delegate.OnMessageFinished(c, resp.msg)
 				c.delegate.OnResume(c)
 			} else {
+				// 如果消息失败， consumer的重新放入队列计数+1   messagesRequeued
 				c.log(LogLevelDebug, "REQ %s", resp.msg.ID)
 				c.delegate.OnMessageRequeued(c, resp.msg)
 				if resp.backoff {
@@ -620,6 +629,7 @@ func (c *Conn) writeLoop() {
 				}
 			}
 
+			// 通过TCP发送消息
 			err := c.WriteCommand(resp.cmd)
 			if err != nil {
 				c.log(LogLevelError, "error sending command %s - %s", resp.cmd, err)

@@ -37,13 +37,17 @@ func (c *Command) WriteTo(w io.Writer) (int64, error) {
 	var total int64
 	var buf [4]byte
 
+
+	// 写入命令的关键字
 	n, err := w.Write(c.Name)
 	total += int64(n)
 	if err != nil {
 		return total, err
 	}
 
+	// 处理命令的参数，和命令在同一行
 	for _, param := range c.Params {
+		// 写入空格，没写入一个参数，下次就写入一个空格
 		n, err := w.Write(byteSpace)
 		total += int64(n)
 		if err != nil {
@@ -56,15 +60,18 @@ func (c *Command) WriteTo(w io.Writer) (int64, error) {
 		}
 	}
 
+	// 换行
 	n, err = w.Write(byteNewLine)
 	total += int64(n)
 	if err != nil {
 		return total, err
 	}
 
+	// 写入body
 	if c.Body != nil {
 		bufs := buf[:]
 		binary.BigEndian.PutUint32(bufs, uint32(len(c.Body)))
+		// 4字节的body长度
 		n, err := w.Write(bufs)
 		total += int64(n)
 		if err != nil {

@@ -51,6 +51,8 @@ type connMessageDelegate struct {
 	c *Conn
 }
 
+// Message.delegate.OnFinish
+// Message.delegate.OnRequeue
 func (d *connMessageDelegate) OnFinish(m *Message) { d.c.onMessageFinish(m) }
 func (d *connMessageDelegate) OnRequeue(m *Message, t time.Duration, b bool) {
 	d.c.onMessageRequeue(m, t, b)

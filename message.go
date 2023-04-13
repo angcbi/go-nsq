@@ -26,6 +26,7 @@ type Message struct {
 
 	Delegate MessageDelegate
 
+	// 是否自动发送ack
 	autoResponseDisabled int32
 	responded            int32
 }
@@ -64,6 +65,7 @@ func (m *Message) HasResponded() bool {
 // Finish sends a FIN command to the nsqd which
 // sent this message
 func (m *Message) Finish() {
+	// responded 是否发送了FIN命令
 	if !atomic.CompareAndSwapInt32(&m.responded, 0, 1) {
 		return
 	}

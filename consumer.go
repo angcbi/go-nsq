@@ -1162,11 +1162,14 @@ func (r *Consumer) handlerLoop(handler Handler) {
 		if err != nil {
 			r.log(LogLevelError, "Handler returned error (%s) for msg %s", err, message.ID)
 			if !message.IsAutoResponseDisabled() {
+
+				// 失败后，消息重新入队
 				message.Requeue(-1)
 			}
 			continue
 		}
 
+		// 如果不是自动发送ACK, 需要发送FIN message_id命令
 		if !message.IsAutoResponseDisabled() {
 			message.Finish()
 		}
