@@ -184,12 +184,14 @@ func (c *Conn) Connect() (*IdentifyResponse, error) {
 	c.r = conn
 	c.w = conn
 
+	// 发送Magic
 	_, err = c.Write(MagicV2)
 	if err != nil {
 		c.Close()
 		return nil, fmt.Errorf("[%s] failed to write magic - %s", c.addr, err)
 	}
 
+	// 发送idenfity
 	resp, err := c.identify()
 	if err != nil {
 		return nil, err
@@ -546,6 +548,7 @@ func (c *Conn) readLoop() {
 		case FrameTypeResponse:
 			c.delegate.OnResponse(c, data)
 		case FrameTypeMessage:
+			// 消息类型
 			msg, err := DecodeMessage(data)
 			if err != nil {
 				c.log(LogLevelError, "IO error - %s", err)

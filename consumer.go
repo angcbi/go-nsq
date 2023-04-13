@@ -114,6 +114,7 @@ type Consumer struct {
 
 	backoffMtx sync.Mutex
 
+	// TCP连接收到的消息，发送到channel
 	incomingMessages chan *Message
 
 	rdyRetryMtx    sync.Mutex
@@ -552,6 +553,7 @@ func (r *Consumer) ConnectToNSQD(addr string) error {
 
 	atomic.StoreInt32(&r.connectedFlag, 1)
 
+	// 收到消息，调用consumerConnDelegate,OnMessage, 进而调用r.onMessage
 	conn := NewConn(addr, &r.config, &consumerConnDelegate{r})
 	conn.SetLoggerLevel(r.getLogLevel())
 	format := fmt.Sprintf("%3d [%s/%s] (%%s)", r.id, r.topic, r.channel)
@@ -559,6 +561,7 @@ func (r *Consumer) ConnectToNSQD(addr string) error {
 		conn.SetLoggerForLevel(r.logger[index], LogLevel(index), format)
 	}
 	r.mtx.Lock()
+	// 检查是否正在连接或已连接
 	_, pendingOk := r.pendingConnections[addr]
 	_, ok := r.connections[addr]
 	if ok || pendingOk {
@@ -580,6 +583,7 @@ func (r *Consumer) ConnectToNSQD(addr string) error {
 		conn.Close()
 	}
 
+	// 建立连接
 	resp, err := conn.Connect()
 	if err != nil {
 		cleanupConnection()
@@ -594,6 +598,7 @@ func (r *Consumer) ConnectToNSQD(addr string) error {
 		}
 	}
 
+	// 构造sub命令
 	cmd := Subscribe(r.topic, r.channel)
 	err = conn.WriteCommand(cmd)
 	if err != nil {
@@ -678,6 +683,7 @@ func (r *Consumer) DisconnectFromNSQLookupd(addr string) error {
 	return nil
 }
 
+// 收到消息，放入incomingMessages
 func (r *Consumer) onConnMessage(c *Conn, msg *Message) {
 	atomic.AddUint64(&r.messagesReceived, 1)
 	r.incomingMessages <- msg
@@ -1129,6 +1135,8 @@ func (r *Consumer) AddConcurrentHandlers(handler Handler, concurrency int) {
 	}
 
 	atomic.AddInt32(&r.runningHandlers, int32(concurrency))
+
+	// 并发处理，只是添加了多个客户端？？
 	for i := 0; i < concurrency; i++ {
 		go r.handlerLoop(handler)
 	}
@@ -1137,6 +1145,7 @@ func (r *Consumer) AddConcurrentHandlers(handler Handler, concurrency int) {
 func (r *Consumer) handlerLoop(handler Handler) {
 	r.log(LogLevelDebug, "starting Handler")
 
+	// 收到消息
 	for {
 		message, ok := <-r.incomingMessages
 		if !ok {
@@ -1148,6 +1157,7 @@ func (r *Consumer) handlerLoop(handler Handler) {
 			continue
 		}
 
+		// 调用自己的实现处理请求
 		err := handler.HandleMessage(message)
 		if err != nil {
 			r.log(LogLevelError, "Handler returned error (%s) for msg %s", err, message.ID)

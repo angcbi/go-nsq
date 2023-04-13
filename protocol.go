@@ -52,6 +52,7 @@ func ReadResponse(r io.Reader) ([]byte, error) {
 	var msgSize int32
 
 	// message size
+	// 读取4个字节的data长度
 	err := binary.Read(r, binary.BigEndian, &msgSize)
 	if err != nil {
 		return nil, err
@@ -91,6 +92,8 @@ func UnpackResponse(response []byte) (int32, []byte, error) {
 // ReadUnpackedResponse reads and parses data from the underlying
 // TCP connection according to the NSQ TCP protocol spec and
 // returns the frameType, data or error
+
+// 返回数据4字节长度+4字节Type+data
 func ReadUnpackedResponse(r io.Reader) (int32, []byte, error) {
 	resp, err := ReadResponse(r)
 	if err != nil {
